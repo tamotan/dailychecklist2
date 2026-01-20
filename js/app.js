@@ -7,6 +7,9 @@ const supabase = createClient(
   'sb_publishable_g2EI7qati9zcyUTCL4_L2w_XfZ2Egwt'
 );
 
+// 定数定義
+const MAX_RECORDS = 10; // 最大保持レコード数
+
 const defaultTasks = [
   { name: '鍵の施錠', checked: false, timestamp: '', deleted: false },
   { name: '窓の施錠', checked: false, timestamp: '', deleted: false },
@@ -95,6 +98,9 @@ createApp({
       if (!name) return;
 
       try {
+        // 最大レコード数チェックと古いレコード削除
+        await this.cleanupOldRecords();
+
         const { data, error } = await supabase
           .from('tasks')
           .insert([{ name, checked: false, timestamp: '', deleted: false }])
@@ -107,6 +113,44 @@ createApp({
       } catch (err) {
         console.error('タスクの追加エラー:', err);
         this.error = 'タスクの追加に失敗しました';
+      }
+    },
+    async cleanupOldRecords() {
+      try {
+        // 全レコード数を取得
+        const { data: allRecords, error: countError } = await supabase
+          .from('tasks')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (countError) throw countError;
+
+        // MAX_RECORDS件以上ある場合は古いレコードを削除
+        if (allRecords && allRecords.length >= MAX_RECORDS) {
+          // deleted=trueのレコードを優先的に削除
+          const deletedRecords = allRecords.filter(r => r.deleted);
+          
+          let recordToDelete;
+          if (deletedRecords.length > 0) {
+            // deleted=trueの中で最も古いレコードを削除
+            recordToDelete = deletedRecords[0];
+          } else {
+            // deleted=trueがない場合は最も古いレコードを削除
+            recordToDelete = allRecords[0];
+          }
+
+          const { error: deleteError } = await supabase
+            .from('tasks')
+            .delete()
+            .eq('id', recordToDelete.id);
+
+          if (deleteError) throw deleteError;
+
+          console.log('古いレコードを削除しました:', recordToDelete);
+        }
+      } catch (err) {
+        console.error('古いレコードの削除エラー:', err);
+        throw err;
       }
     },
     async deleteTask(taskId) {
