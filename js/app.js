@@ -8,9 +8,9 @@ const supabase = createClient(
 );
 
 const defaultTasks = [
-  { name: '鍵の施錠', checked: false, timestamp: '' },
-  { name: '窓の施錠', checked: false, timestamp: '' },
-  { name: '部屋の消灯', checked: false, timestamp: '' }
+  { name: '鍵の施錠', checked: false, timestamp: '', deleted: false },
+  { name: '窓の施錠', checked: false, timestamp: '', deleted: false },
+  { name: '部屋の消灯', checked: false, timestamp: '', deleted: false }
 ];
 
 createApp({
@@ -33,6 +33,7 @@ createApp({
         const { data, error } = await supabase
           .from('tasks')
           .select('*')
+          .eq('deleted', false)
           .order('created_at', { ascending: true });
 
         if (error) throw error;
@@ -63,8 +64,8 @@ createApp({
         console.error('デフォルトタスクの初期化エラー:', err);
       }
     },
-    async toggleTask(index) {
-      const task = this.tasks[index];
+    async toggleTask(taskId) {
+      const task = this.tasks.find(t => t.id === taskId);
       if (!task) return;
 
       const newChecked = !task.checked;
@@ -96,7 +97,7 @@ createApp({
       try {
         const { data, error } = await supabase
           .from('tasks')
-          .insert([{ name, checked: false, timestamp: '' }])
+          .insert([{ name, checked: false, timestamp: '', deleted: false }])
           .select();
 
         if (error) throw error;
@@ -108,45 +109,23 @@ createApp({
         this.error = 'タスクの追加に失敗しました';
       }
     },
-    async deleteTask(index) {
-      const task = this.tasks[index];
+    async deleteTask(taskId) {
+      const task = this.tasks.find(t => t.id === taskId);
       if (!task) return;
 
       try {
         const { error } = await supabase
           .from('tasks')
-          .delete()
+          .update({ deleted: true })
           .eq('id', task.id);
 
         if (error) throw error;
 
-        this.tasks.splice(index, 1);
+        // ローカルの配列から削除して表示を更新
+        this.tasks = this.tasks.filter(t => t.id !== taskId);
       } catch (err) {
         console.error('タスクの削除エラー:', err);
         this.error = 'タスクの削除に失敗しました';
-      }
-    },
-    async uncheckAll() {
-      try {
-        // すべてのタスクIDを取得
-        const taskIds = this.tasks.map(task => task.id);
-
-        const { error } = await supabase
-          .from('tasks')
-          .update({ checked: false, timestamp: '' })
-          .in('id', taskIds);
-
-        if (error) throw error;
-
-        // ローカルの状態を更新
-        this.tasks = this.tasks.map(task => ({
-          ...task,
-          checked: false,
-          timestamp: ''
-        }));
-      } catch (err) {
-        console.error('一括チェック解除エラー:', err);
-        this.error = '一括チェック解除に失敗しました';
       }
     }
   }
