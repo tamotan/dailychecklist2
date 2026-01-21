@@ -28,7 +28,7 @@
                                     v-for="task in tasks"
                                     :key="task.id"
                                     class="list-group-item d-flex flex-column gap-1"
-                                    :class="{ 'list-group-item-success': task.checked }"
+                                    :class="{ 'list-group-item-success': !task.checked }"
                                 >
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div class="form-check mb-0">
