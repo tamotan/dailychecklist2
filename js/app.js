@@ -37,6 +37,7 @@ createApp({
           .from('tasks')
           .select('*')
           .eq('deleted', false)
+          .order('checked', { ascending: true })
           .order('created_at', { ascending: true });
 
         if (error) throw error;
@@ -88,6 +89,9 @@ createApp({
         // ローカルの状態を更新
         task.checked = newChecked;
         task.timestamp = newTimestamp;
+
+        // リストを再読み込みして並び順を更新
+        await this.loadTasks();
       } catch (err) {
         console.error('タスクの更新エラー:', err);
         this.error = 'タスクの更新に失敗しました';
@@ -108,8 +112,9 @@ createApp({
 
         if (error) throw error;
 
-        this.tasks.push(data[0]);
         this.newTask = '';
+        // リストを再読み込みして並び順を更新
+        await this.loadTasks();
       } catch (err) {
         console.error('タスクの追加エラー:', err);
         this.error = 'タスクの追加に失敗しました';
