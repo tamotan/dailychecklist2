@@ -1,8 +1,8 @@
 import { createApp } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { TaskDatabase } from './database.js';
 
-// Supabaseクライアントの初期化
-const supabase = createClient(
+// データベースクライアントの初期化
+const db = new TaskDatabase(
   'https://hspbssdalvqeboayvife.supabase.co',
   'sb_publishable_g2EI7qati9zcyUTCL4_L2w_XfZ2Egwt'
 );
@@ -11,9 +11,7 @@ const supabase = createClient(
 const MAX_RECORDS = 10; // 最大保持レコード数
 
 const defaultTasks = [
-  { name: '鍵の施錠', checked: false, timestamp: '', deleted: false },
-  { name: '窓の施錠', checked: false, timestamp: '', deleted: false },
-  { name: '部屋の消灯', checked: false, timestamp: '', deleted: false }
+  { name: '日々の学習', checked: false, timestamp: '', deleted: false },
 ];
 
 createApp({
@@ -50,14 +48,7 @@ createApp({
       this.loading = true;
       this.error = null;
       try {
-        const { data, error } = await supabase
-          .from('tasks')
-          .select('*')
-          .eq('deleted', false)
-          .order('checked', { ascending: true })
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
+        const data = await db.loadTasks();
 
         // データがない場合はデフォルトタスクを挿入
         if (!data || data.length === 0) {
@@ -79,12 +70,8 @@ createApp({
     },
     async initializeDefaultTasks() {
       try {
-        const { data, error } = await supabase
-          .from('tasks')
-          .insert(defaultTasks)
-          .select();
-
-        if (error) throw error;
+        const data = await db.insertTasks(defaultTasks);
+        
         // 編集用のプロパティを追加
         this.tasks = data.map(task => ({
           ...task,
@@ -103,15 +90,10 @@ createApp({
       const newTimestamp = newChecked ? this.getCurrentTimestamp() : '';
 
       try {
-        const { error } = await supabase
-          .from('tasks')
-          .update({ 
-            checked: newChecked, 
-            timestamp: newTimestamp 
-          })
-          .eq('id', task.id);
-
-        if (error) throw error;
+        await db.updateTask(taskId, {
+          checked: newChecked,
+          timestamp: newTimestamp
+        });
 
         // ローカルの状態を更新
         task.checked = newChecked;
@@ -135,12 +117,12 @@ createApp({
         // タイムスタンプを yyyy/mm/dd hh:mm:ss 形式で生成
         const timestamp = this.getCurrentTimestamp();
 
-        const { data, error } = await supabase
-          .from('tasks')
-          .insert([{ name, checked: false, timestamp: timestamp, deleted: false }])
-          .select();
-
-        if (error) throw error;
+        await db.insertTasks([{
+          name,
+          checked: false,
+          timestamp: timestamp,
+          deleted: false
+        }]);
 
         this.newTask = '';
         // リストを再読み込みして並び順を更新
@@ -152,37 +134,7 @@ createApp({
     },
     async cleanupOldRecords() {
       try {
-        // 全レコード数を取得
-        const { data: allRecords, error: countError } = await supabase
-          .from('tasks')
-          .select('*')
-          .order('created_at', { ascending: true });
-
-        if (countError) throw countError;
-
-        // MAX_RECORDS件以上ある場合は古いレコードを削除
-        if (allRecords && allRecords.length >= MAX_RECORDS) {
-          // deleted=trueのレコードを優先的に削除
-          const deletedRecords = allRecords.filter(r => r.deleted);
-          
-          let recordToDelete;
-          if (deletedRecords.length > 0) {
-            // deleted=trueの中で最も古いレコードを削除
-            recordToDelete = deletedRecords[0];
-          } else {
-            // deleted=trueがない場合は最も古いレコードを削除
-            recordToDelete = allRecords[0];
-          }
-
-          const { error: deleteError } = await supabase
-            .from('tasks')
-            .delete()
-            .eq('id', recordToDelete.id);
-
-          if (deleteError) throw deleteError;
-
-          console.log('古いレコードを削除しました:', recordToDelete);
-        }
+        await db.cleanupOldRecords(MAX_RECORDS);
       } catch (err) {
         console.error('古いレコードの削除エラー:', err);
         throw err;
@@ -193,12 +145,7 @@ createApp({
       if (!task) return;
 
       try {
-        const { error } = await supabase
-          .from('tasks')
-          .update({ deleted: true })
-          .eq('id', task.id);
-
-        if (error) throw error;
+        await db.softDeleteTask(taskId);
 
         // ローカルの配列から削除して表示を更新
         this.tasks = this.tasks.filter(t => t.id !== taskId);
@@ -246,12 +193,7 @@ createApp({
       }
       
       try {
-        const { error } = await supabase
-          .from('tasks')
-          .update({ name: newName })
-          .eq('id', task.id);
-
-        if (error) throw error;
+        await db.updateTask(task.id, { name: newName });
 
         // ローカルの状態を更新
         task.name = newName;
