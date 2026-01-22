@@ -29,6 +29,23 @@ createApp({
     this.loadTasks();
   },
   methods: {
+    // タイムスタンプをyyyy/mm/dd hh:mm形式に変換（秒を除外）
+    formatTimestamp(timestamp) {
+      if (!timestamp) return '';
+      // yyyy/mm/dd hh:mm:ss から yyyy/mm/dd hh:mm に変換
+      return timestamp.substring(0, 16);
+    },
+    // 現在時刻をyyyy/mm/dd hh:mm:ss形式で取得
+    getCurrentTimestamp() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const hh = String(now.getHours()).padStart(2, '0');
+      const min = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      return `${yyyy}/${mm}/${dd} ${hh}:${min}:${ss}`;
+    },
     async loadTasks() {
       this.loading = true;
       this.error = null;
@@ -83,7 +100,7 @@ createApp({
       if (!task) return;
 
       const newChecked = !task.checked;
-      const newTimestamp = newChecked ? new Date().toLocaleString() : '';
+      const newTimestamp = newChecked ? this.getCurrentTimestamp() : '';
 
       try {
         const { error } = await supabase
@@ -115,9 +132,12 @@ createApp({
         // 最大レコード数チェックと古いレコード削除
         await this.cleanupOldRecords();
 
+        // タイムスタンプを yyyy/mm/dd hh:mm:ss 形式で生成
+        const timestamp = this.getCurrentTimestamp();
+
         const { data, error } = await supabase
           .from('tasks')
-          .insert([{ name, checked: false, timestamp: '', deleted: false }])
+          .insert([{ name, checked: false, timestamp: timestamp, deleted: false }])
           .select();
 
         if (error) throw error;
