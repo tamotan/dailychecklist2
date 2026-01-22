@@ -46,7 +46,12 @@ createApp({
         if (!data || data.length === 0) {
           await this.initializeDefaultTasks();
         } else {
-          this.tasks = data;
+          // 編集用のプロパティを追加
+          this.tasks = data.map(task => ({
+            ...task,
+            editing: false,
+            editingName: ''
+          }));
         }
       } catch (err) {
         console.error('タスクの読み込みエラー:', err);
@@ -63,7 +68,12 @@ createApp({
           .select();
 
         if (error) throw error;
-        this.tasks = data;
+        // 編集用のプロパティを追加
+        this.tasks = data.map(task => ({
+          ...task,
+          editing: false,
+          editingName: ''
+        }));
       } catch (err) {
         console.error('デフォルトタスクの初期化エラー:', err);
       }
@@ -176,6 +186,66 @@ createApp({
         console.error('タスクの削除エラー:', err);
         this.error = 'タスクの削除に失敗しました';
       }
+    },
+    startEditing(task) {
+      // 他の編集中のタスクをキャンセル
+      this.tasks.forEach(t => {
+        if (t.editing) {
+          t.editing = false;
+          t.editingName = '';
+        }
+      });
+      
+      // 編集モードに切り替え
+      task.editing = true;
+      task.editingName = task.name;
+      
+      // 次のティックで入力フィールドにフォーカス
+      this.$nextTick(() => {
+        const editInputs = this.$refs.editInput;
+        if (editInputs && editInputs.length > 0) {
+          editInputs[0].focus();
+          editInputs[0].select();
+        }
+      });
+    },
+    async saveEdit(task) {
+      const newName = task.editingName.trim();
+      
+      // 空の場合は編集をキャンセル
+      if (!newName) {
+        this.cancelEdit(task);
+        return;
+      }
+      
+      // 変更がない場合は編集モードを終了
+      if (newName === task.name) {
+        task.editing = false;
+        task.editingName = '';
+        return;
+      }
+      
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .update({ name: newName })
+          .eq('id', task.id);
+
+        if (error) throw error;
+
+        // ローカルの状態を更新
+        task.name = newName;
+        task.editing = false;
+        task.editingName = '';
+      } catch (err) {
+        console.error('タスクの更新エラー:', err);
+        this.error = 'タスクの更新に失敗しました';
+        this.cancelEdit(task);
+      }
+    },
+    cancelEdit(task) {
+      task.editing = false;
+      task.editingName = '';
     }
   }
 }).mount('#app');

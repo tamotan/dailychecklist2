@@ -8,6 +8,7 @@
     <style>
         body { background-color: #f4f4f4; }
         .timestamp { font-size: 0.85rem; color: #6c757d; }
+        .editable-label { cursor: text; }
     </style>
 </head>
 <body>
@@ -17,7 +18,7 @@
                 <div class="col-12 col-md-8 col-lg-6">
                     <div class="card shadow-sm">
                         <div class="card-body">
-                            <h2 class="h4 mb-3 text-center">ToDoList</h2>
+                            <h2 class="h4 mb-3 text-center">ToDoList 1.02</h2>
 
                             <div v-if="tasks.length === 0" class="alert alert-light text-center mb-3">
                                 読み込み中... 少しお待ちください
@@ -31,11 +32,27 @@
                                     :class="{ 'list-group-item-success': !task.checked }"
                                 >
                                     <div class="d-flex align-items-center justify-content-between">
-                                        <div class="form-check mb-0">
+                                        <div class="form-check mb-0 flex-grow-1 d-flex align-items-center">
                                             <input class="form-check-input" type="checkbox" :checked="task.checked" @change="toggleTask(task.id)">
-                                            <label class="form-check-label ms-2">{{ task.name }}</label>
+                                            <label 
+                                                v-if="!task.editing" 
+                                                class="form-check-label ms-2 editable-label" 
+                                                @dblclick="startEditing(task)"
+                                            >
+                                                {{ task.name }}
+                                            </label>
+                                            <input 
+                                                v-else 
+                                                type="text" 
+                                                class="form-control form-control-sm ms-2 flex-grow-1" 
+                                                v-model="task.editingName"
+                                                @keyup.enter="saveEdit(task)"
+                                                @blur="cancelEdit(task)"
+                                                @keyup.esc="cancelEdit(task)"
+                                                ref="editInput"
+                                            >
                                         </div>
-                                        <button class="btn btn-sm btn-outline-danger" @click="deleteTask(task.id)">削除</button>
+                                        <button class="btn btn-sm btn-outline-danger ms-2" @click="deleteTask(task.id)">削除</button>
                                     </div>
                                     <span class="timestamp" v-if="task.timestamp">({{ task.timestamp }})</span>
                                 </li>
