@@ -8,7 +8,7 @@ const db = new TaskDatabase(
 );
 
 // 定数定義
-const MAX_RECORDS = 10; // 最大保持レコード数
+const MAX_RECORDS = 20; // 最大保持レコード数
 
 const defaultTasks = [
   { name: '日々の学習', checked: false, timestamp: '', deleted: false },
