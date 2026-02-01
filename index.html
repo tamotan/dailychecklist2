@@ -9,6 +9,7 @@
         body { background-color: #f4f4f4; }
         .timestamp { font-size: 0.85rem; color: #6c757d; margin-left: 0.5rem; }
         .editable-label { cursor: text; }
+        .level-badge { font-size: 0.75rem; margin-right: 0.5rem; }
     </style>
 </head>
 <body>
@@ -18,7 +19,7 @@
                 <div class="col-12 col-md-8 col-lg-6">
                     <div class="card shadow-sm">
                         <div class="card-body">
-                            <h2 class="h4 mb-3 text-center">ToDoList 1.04</h2>
+                            <h2 class="h4 mb-3 text-center">ToDoList 1.12</h2>
 
                             <div v-if="tasks.length === 0" class="alert alert-light text-center mb-3">
                                 読み込み中... 少しお待ちください
@@ -33,6 +34,7 @@
                                 >
                                     <div class="form-check mb-0 flex-grow-1 d-flex align-items-center">
                                         <input class="form-check-input" type="checkbox" :checked="task.checked" @change="toggleTask(task.id)">
+                                        <span class="badge bg-secondary level-badge">L{{ task.level || 2 }}</span>
                                         <label 
                                             v-if="!task.editing" 
                                             class="form-check-label ms-2 editable-label" 
@@ -41,22 +43,36 @@
                                             {{ task.name }}
                                             <span v-if="task.timestamp" class="timestamp">({{ formatTimestamp(task.timestamp) }})</span>
                                         </label>
-                                        <input 
-                                            v-else 
-                                            type="text" 
-                                            class="form-control form-control-sm ms-2 flex-grow-1" 
-                                            v-model="task.editingName"
-                                            @keyup.enter="saveEdit(task)"
-                                            @blur="cancelEdit(task)"
-                                            @keyup.esc="cancelEdit(task)"
-                                            ref="editInput"
-                                        >
+                                        <div v-else class="d-flex align-items-center flex-grow-1 gap-2 ms-2">
+                                            <select 
+                                                class="form-select form-select-sm" 
+                                                style="width: 70px;" 
+                                                v-model.number="task.editingLevel"
+                                                @blur="handleEditBlur(task, $event)"
+                                            >
+                                                <option :value="1">L1</option>
+                                                <option :value="2">L2</option>
+                                            </select>
+                                            <input 
+                                                type="text" 
+                                                class="form-control form-control-sm flex-grow-1" 
+                                                v-model="task.editingName"
+                                                @keyup.enter="saveEdit(task)"
+                                                @blur="handleEditBlur(task, $event)"
+                                                @keyup.esc="cancelEdit(task)"
+                                                ref="editInput"
+                                            >
+                                        </div>
                                     </div>
                                     <button class="btn btn-sm btn-outline-danger ms-2" @click="deleteTask(task.id)">削除</button>
                                 </li>
                             </ul>
 
-                            <div class="input-group">
+                            <div class="input-group mb-2">
+                                <select class="form-select" style="max-width: 80px;" v-model.number="newTaskLevel">
+                                    <option :value="1">L1</option>
+                                    <option :value="2">L2</option>
+                                </select>
                                 <input type="text" class="form-control" v-model.trim="newTask" placeholder="新しい項目を追加" @keyup.enter="addTask">
                                 <button class="btn btn-primary" @click="addTask">追加</button>
                             </div>

@@ -8,10 +8,15 @@ const db = new TaskDatabase(
 );
 
 // 定数定義
-const MAX_RECORDS = 10; // 最大保持レコード数
+const MAX_RECORDS = 20; // 最大保持レコード数
+const DEFAULT_LEVEL = 2; // デフォルトのlevel値
+const MIN_LEVEL = 1;
+const MAX_LEVEL = 2;
 
 const defaultTasks = [
-  { name: '日々の学習', checked: false, timestamp: '', deleted: false },
+  { name: '鍵の施錠', checked: false, timestamp: '', deleted: false, level: 1 },
+  { name: '窓の施錠', checked: false, timestamp: '', deleted: false, level: 1 },
+  { name: '部屋の消灯', checked: false, timestamp: '', deleted: false, level: 1 }
 ];
 
 createApp({
@@ -19,8 +24,12 @@ createApp({
     return {
       tasks: [],
       newTask: '',
+      newTaskLevel: DEFAULT_LEVEL,
       loading: false,
-      error: null
+      error: null,
+      minLevel: MIN_LEVEL,
+      maxLevel: MAX_LEVEL,
+      blurTimeout: null
     };
   },
   mounted() {
@@ -58,7 +67,8 @@ createApp({
           this.tasks = data.map(task => ({
             ...task,
             editing: false,
-            editingName: ''
+            editingName: '',
+            editingLevel: task.level || DEFAULT_LEVEL
           }));
         }
       } catch (err) {
@@ -76,7 +86,8 @@ createApp({
         this.tasks = data.map(task => ({
           ...task,
           editing: false,
-          editingName: ''
+          editingName: '',
+          editingLevel: task.level || DEFAULT_LEVEL
         }));
       } catch (err) {
         console.error('デフォルトタスクの初期化エラー:', err);
@@ -121,10 +132,12 @@ createApp({
           name,
           checked: false,
           timestamp: timestamp,
-          deleted: false
+          deleted: false,
+          level: this.newTaskLevel
         }]);
 
         this.newTask = '';
+        this.newTaskLevel = DEFAULT_LEVEL;
         // リストを再読み込みして並び順を更新
         await this.loadTasks();
       } catch (err) {
@@ -160,12 +173,14 @@ createApp({
         if (t.editing) {
           t.editing = false;
           t.editingName = '';
+          t.editingLevel = t.level || DEFAULT_LEVEL;
         }
       });
       
       // 編集モードに切り替え
       task.editing = true;
       task.editingName = task.name;
+      task.editingLevel = task.level || DEFAULT_LEVEL;
       
       // 次のティックで入力フィールドにフォーカス
       this.$nextTick(() => {
@@ -176,7 +191,32 @@ createApp({
         }
       });
     },
+    // 編集エリアのフォーカスアウトを遅延処理
+    handleEditBlur(task, event) {
+      // 既存のタイムアウトをクリア
+      if (this.blurTimeout) {
+        clearTimeout(this.blurTimeout);
+      }
+      
+      // 少し遅延させて、新しいフォーカス先が編集エリア内かチェック
+      this.blurTimeout = setTimeout(() => {
+        // アクティブな要素を取得
+        const activeElement = document.activeElement;
+        
+        // 編集エリア内の要素（select や input）にフォーカスが移っていない場合のみキャンセル
+        const editContainer = event.target.closest('.d-flex.align-items-center.flex-grow-1');
+        if (!editContainer || !editContainer.contains(activeElement)) {
+          this.cancelEdit(task);
+        }
+      }, 100);
+    },
     async saveEdit(task) {
+      // タイムアウトをクリア
+      if (this.blurTimeout) {
+        clearTimeout(this.blurTimeout);
+        this.blurTimeout = null;
+      }
+      
       const newName = task.editingName.trim();
       
       // 空の場合は編集をキャンセル
@@ -186,19 +226,32 @@ createApp({
       }
       
       // 変更がない場合は編集モードを終了
-      if (newName === task.name) {
+      if (newName === task.name && task.editingLevel === task.level) {
         task.editing = false;
         task.editingName = '';
+        task.editingLevel = task.level || DEFAULT_LEVEL;
         return;
       }
       
       try {
-        await db.updateTask(task.id, { name: newName });
+        // 変更がある場合は現在時刻でtimestampを更新
+        const newTimestamp = this.getCurrentTimestamp();
+        
+        await db.updateTask(task.id, { 
+          name: newName,
+          level: task.editingLevel,
+          timestamp: newTimestamp
+        });
 
         // ローカルの状態を更新
         task.name = newName;
+        task.level = task.editingLevel;
+        task.timestamp = newTimestamp;
         task.editing = false;
         task.editingName = '';
+        
+        // リストを再読み込みして並び順を更新
+        await this.loadTasks();
       } catch (err) {
         console.error('タスクの更新エラー:', err);
         this.error = 'タスクの更新に失敗しました';
@@ -206,8 +259,15 @@ createApp({
       }
     },
     cancelEdit(task) {
+      // タイムアウトをクリア
+      if (this.blurTimeout) {
+        clearTimeout(this.blurTimeout);
+        this.blurTimeout = null;
+      }
+      
       task.editing = false;
       task.editingName = '';
+      task.editingLevel = task.level || DEFAULT_LEVEL;
     }
   }
 }).mount('#app');
