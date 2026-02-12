@@ -15,8 +15,8 @@ export class TaskDatabase {
       .eq('deleted', false)
       .order('checked', { ascending: true })
       .order('level', { ascending: true })
-      .order('timestamp', { ascending: true })
-      .order('created_at', { ascending: true });
+      .order('timestamp', { ascending: false })
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
     return data || [];
