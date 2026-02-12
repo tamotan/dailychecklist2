@@ -9,9 +9,11 @@ const db = new TaskDatabase(
 
 // 定数定義
 const MAX_RECORDS = 20; // 最大保持レコード数
+
 const DEFAULT_LEVEL = 2; // デフォルトのlevel値
 const MIN_LEVEL = 1;
 const MAX_LEVEL = 2;
+
 
 const defaultTasks = [
   { name: '鍵の施錠', checked: false, timestamp: '', deleted: false, level: 1 },

@@ -13,8 +13,8 @@ export class TaskDatabase {
       .from('tasks')
       .select('*')
       .eq('deleted', false)
-      .order('level', { ascending: true })
       .order('checked', { ascending: true })
+      .order('level', { ascending: true })
       .order('timestamp', { ascending: true })
       .order('created_at', { ascending: true });
 
